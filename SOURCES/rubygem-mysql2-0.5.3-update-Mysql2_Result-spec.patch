@@ -1,0 +1,38 @@
+From 4dce466f3ff1c90099d3dc1bf610bfab840d3631 Mon Sep 17 00:00:00 2001
+From: Jean Boussier <jean.boussier@gmail.com>
+Date: Fri, 26 Nov 2021 13:17:05 +0100
+Subject: [PATCH] Update Mysql2::Result spec for Ruby 3.1
+
+Ruby 3.1 immediately raise a TypeError if you try to
+instantiate a class that doesn't have an allocator,
+which is what we want anyways.
+---
+ spec/mysql2/result_spec.rb | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/spec/mysql2/result_spec.rb b/spec/mysql2/result_spec.rb
+index 47a4a6de..2af6e609 100644
+--- a/spec/mysql2/result_spec.rb
++++ b/spec/mysql2/result_spec.rb
+@@ -6,11 +6,16 @@
+   end
+ 
+   it "should raise a TypeError exception when it doesn't wrap a result set" do
+-    r = Mysql2::Result.new
+-    expect { r.count }.to raise_error(TypeError)
+-    expect { r.fields }.to raise_error(TypeError)
+-    expect { r.size }.to raise_error(TypeError)
+-    expect { r.each }.to raise_error(TypeError)
++    if RUBY_VERSION >= "3.1"
++      expect { Mysql2::Result.new }.to raise_error(TypeError)
++      expect { Mysql2::Result.allocate }.to raise_error(TypeError)
++    else
++      r = Mysql2::Result.new
++      expect { r.count }.to raise_error(TypeError)
++      expect { r.fields }.to raise_error(TypeError)
++      expect { r.size }.to raise_error(TypeError)
++      expect { r.each }.to raise_error(TypeError)
++    end
+   end
+ 
+   it "should have included Enumerable" do
