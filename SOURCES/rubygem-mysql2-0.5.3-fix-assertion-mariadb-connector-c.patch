@@ -1,0 +1,22 @@
+From cca57b97ad6d1b1b985376be110b89d2b487dea6 Mon Sep 17 00:00:00 2001
+From: Aaron Patterson <tenderlove@ruby-lang.org>
+Date: Tue, 30 Nov 2021 12:59:43 -0800
+Subject: [PATCH] fix assertion on maria
+
+downgrade psych
+---
+ spec/mysql2/client_spec.rb | 2 +-
+
+diff --git a/spec/mysql2/client_spec.rb b/spec/mysql2/client_spec.rb
+index 1519e0f5d..41fb834bf 100644
+--- a/spec/mysql2/client_spec.rb
++++ b/spec/mysql2/client_spec.rb
+@@ -573,7 +573,7 @@ def run_gc
+       end
+       expect do
+         @client.query("SELECT SLEEP(1)")
+-      end.to raise_error(Mysql2::Error, /Lost connection to MySQL server/)
++      end.to raise_error(Mysql2::Error, /Lost connection/)
+ 
+       if RUBY_PLATFORM !~ /mingw|mswin/
+         expect do
