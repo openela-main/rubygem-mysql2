@@ -1,0 +1,33 @@
+From 15607011344b4f38306befeeebae2fa906dc4860 Mon Sep 17 00:00:00 2001
+From: Jarek Prokop <jprokop@redhat.com>
+Date: Fri, 8 Mar 2024 12:36:46 +0100
+Subject: [PATCH] Backport "Use the SSL pem files in the Git repository." to
+ 0.5.3.
+
+Backport patch from Fedora
+<https://src.fedoraproject.org/rpms/rubygem-mysql2/c/c33b1cff596b301b49c76f4307ab87390c681f30>
+to resolve failing to start mariadb with SSL.
+---
+ spec/mysql2/client_spec.rb | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/spec/mysql2/client_spec.rb b/spec/mysql2/client_spec.rb
+index 5a3b8a2..f2f7bec 100644
+--- a/spec/mysql2/client_spec.rb
++++ b/spec/mysql2/client_spec.rb
+@@ -137,9 +137,9 @@ RSpec.describe Mysql2::Client do
+     ssl_client = nil
+     option_overrides = {
+       'host'     => 'mysql2gem.example.com', # must match the certificates
+-      :sslkey    => '/etc/mysql/client-key.pem',
+-      :sslcert   => '/etc/mysql/client-cert.pem',
+-      :sslca     => '/etc/mysql/ca-cert.pem',
++      :sslkey    => 'spec/ssl/client-key.pem',
++      :sslcert   => 'spec/ssl/client-cert.pem',
++      :sslca     => 'spec/ssl/ca-cert.pem',
+       :sslcipher => 'DHE-RSA-AES256-SHA',
+       :sslverify => true,
+     }
+-- 
+2.43.0
+

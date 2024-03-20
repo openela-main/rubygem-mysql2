@@ -6,7 +6,7 @@
 
 Name: rubygem-%{gem_name}
 Version: 0.5.3
-Release: 2%{?dist}
+Release: 3%{?dist}
 Summary: A simple, fast Mysql library for Ruby, binding to libmysql
 License: MIT
 URL: https://github.com/brianmario/mysql2
@@ -23,6 +23,9 @@ Patch1:  rubygem-mysql2-0.5.3-update-Mysql2_Result-spec.patch
 # Fix test assertion for mariadb-connector-c
 # https://github.com/brianmario/mysql2/commit/cca57b97ad6d1b1b985376be110b89d2b487dea6
 Patch2: rubygem-mysql2-0.5.3-fix-assertion-mariadb-connector-c.patch
+# Use the SSL pem files in the upstream repositry for the SSL tests.
+# https://github.com/brianmario/mysql2/pull/1293
+Patch3: rubygem-mysql2-0.5.4-use-ssl-pem-files-in-repo.patch
 
 # Required in lib/mysql2.rb
 Requires: rubygem(bigdecimal)
@@ -41,6 +44,8 @@ BuildRequires: rubygem(bigdecimal)
 # Comment out to prevent a build error by conflicting requests.
 # Nothing provides libruby.so.2.4()(64bit) needed by rubygem-eventmachine.
 #BuildRequires: rubygem(eventmachine)
+# Used in spec/ssl/gen_certs.sh
+BuildRequires: %{_bindir}/openssl
 %endif
 
 %description
@@ -64,6 +69,7 @@ Documentation for %{name}
 pushd %{_builddir}/spec
 %patch1 -p2
 %patch2 -p2
+%patch3 -p2
 popd
 
 %build
@@ -95,6 +101,24 @@ pushd .%{gem_instdir}
 ln -s %{_builddir}/spec spec
 
 TOP_DIR=$(pwd)
+
+# Regenerate the SSL certification files from the localhost, as we cannot set
+# the host mysql2gem.example.com required for the SSL tests.
+# https://github.com/brianmario/mysql2/pull/1296
+sed -i '/host/ s/mysql2gem\.example\.com/localhost/' spec/mysql2/client_spec.rb
+sed -i '/commonName_default/ s/mysql2gem\.example\.com/localhost/' spec/ssl/gen_certs.sh
+pushd spec/ssl
+bash gen_certs.sh
+popd
+
+# See https://github.com/brianmario/mysql2/blob/master/ci/ssl.sh
+echo "
+[mysqld]
+ssl-ca=${TOP_DIR}/spec/ssl/ca-cert.pem
+ssl-cert=${TOP_DIR}/spec/ssl/server-cert.pem
+ssl-key=${TOP_DIR}/spec/ssl/server-key.pem
+" > ~/.my.cnf
+
 # Use testing port because the standard mysqld port 3306 is occupied.
 # Assign a random port to consider a case of multi builds in parallel in a host.
 # https://src.fedoraproject.org/rpms/rubygem-pg/pull-request/3
@@ -118,15 +142,22 @@ mysql_install_db \
   --port="${MYSQL_TEST_PORT}" \
   --ssl &
 
+conn_found=false
 for i in $(seq 10); do
+  echo "Waiting for the DB server to accept connections... ${i}"
   sleep 1
-  if grep -q 'ready for connections.' "${MYSQL_TEST_LOG}"; then
+  if grep -q 'ready for connections' "${MYSQL_TEST_LOG}"; then
+    conn_found=true
     break
   fi
-  echo "Waiting connections... ${i}"
 done
+if ! "${conn_found}"; then
+  echo "ERROR: Failed to connect the DB server."
+  cat "${MYSQL_TEST_LOG}"
+  exit 1
+fi
 
-# See https://github.com/brianmario/mysql2/blob/master/.travis_setup.sh
+# See https://github.com/brianmario/mysql2/blob/master/ci/setup.sh
 mysql -u root \
   -e 'CREATE DATABASE /*M!50701 IF NOT EXISTS */ test' \
   -S "${MYSQL_TEST_SOCKET}" \
@@ -150,10 +181,6 @@ user:
   port: ${MYSQL_TEST_PORT}
   socket: ${MYSQL_TEST_SOCKET}
 EOF
-
-# This test would require changes in host configuration.
-sed -i '/^  it "should be able to connect via SSL options" do$/,/^  end$/ s/^/#/' \
-  spec/mysql2/client_spec.rb
 
 # performance_schema.session_account_connect_attrs is unexpectedly empty.
 # https://github.com/brianmario/mysql2/issues/965
@@ -186,6 +213,10 @@ kill "$(cat "${MYSQL_TEST_PID_FILE}")"
 
 
 %changelog
+* Fri Mar 08 2024 Jarek Prokop <jprokop@redhat.com> - 0.5.3-3
+- Fix SSL related test failure by backporting Fedora commit <c33b1cf>.
+  Related: RHEL-28565
+
 * Fri Apr 22 2022 Jarek Prokop <jprokop@redhat.com> 0.5.3-2
 - Update by merging Fedora rawhide branch (commit: 81e2cc9)
 - Fix Mysql2::Result test for Ruby 3.1.
