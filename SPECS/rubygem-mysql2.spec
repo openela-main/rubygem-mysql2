@@ -215,7 +215,7 @@ kill "$(cat "${MYSQL_TEST_PID_FILE}")"
 %changelog
 * Fri Mar 08 2024 Jarek Prokop <jprokop@redhat.com> - 0.5.3-3
 - Fix SSL related test failure by backporting Fedora commit <c33b1cf>.
-  Related: RHEL-28565
+  Related: RHEL-5584
 
 * Fri Apr 22 2022 Jarek Prokop <jprokop@redhat.com> 0.5.3-2
 - Update by merging Fedora rawhide branch (commit: 81e2cc9)
