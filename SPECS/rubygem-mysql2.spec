@@ -1,12 +1,18 @@
-# build with tests?
+# Disable tests for 32bit arch, mariadb-server
+# needed for majority of the tests is not built for ix86
+# https://gitlab.com/redhat/centos-stream/rpms/mariadb/-/blob/e7c71299403146a661255e2d50a74d789d083429/mariadb.spec#L2
+%ifarch %{ix86}
+%bcond_with tests
+%else
 %bcond_without tests
+%endif
 
 # Generated from mysql2-0.3.11.gem by gem2rpm -*- rpm-spec -*-
 %global gem_name mysql2
 
 Name: rubygem-%{gem_name}
 Version: 0.5.5
-Release: 1%{?dist}
+Release: 3%{?dist}
 Summary: A simple, fast Mysql library for Ruby, binding to libmysql
 License: MIT
 URL: https://github.com/brianmario/mysql2
@@ -17,6 +23,9 @@ Source1: %{gem_name}-%{version}-tests.txz
 # Use the SSL pem files in the upstream repositry for the SSL tests.
 # https://github.com/brianmario/mysql2/pull/1293
 Patch0: rubygem-mysql2-0.5.4-use-ssl-pem-files-in-repo.patch
+# openssl 3.2 requires CA:TRUE
+# https://github.com/brianmario/mysql2/pull/1357
+Patch1: rubygem-mysql2-0.5.5-openssl-CA-TRUE.patch
 
 # Required in lib/mysql2.rb
 Requires: rubygem(bigdecimal)
@@ -59,6 +68,7 @@ Documentation for %{name}
 
 pushd %{_builddir}/spec
 %patch -P 0 -p2
+%patch -P 1 -p2
 popd
 
 %build
@@ -198,6 +208,14 @@ kill "$(cat "${MYSQL_TEST_PID_FILE}")"
 
 
 %changelog
+* Wed Jul 23 2025 Jarek Prokop <jprokop@redhat.com> - 0.5.5-3
+- Disable tests on the 32bit platforms ix86.
+  Related: RHEL-80222
+
+* Fri Feb 09 2024 Jarek Prokop <jprokop@redhat.com> - 0.5.5-2
+- Adapt tests to openssl 3.2
+  Resolves: RHEL-80222
+
 * Fri Jan 19 2024 Jarek Prokop <jprokop@redhat.com> - 0.5.5-1
 - Upgrade to mysql2 0.5.5.
   Related: RHEL-17089
